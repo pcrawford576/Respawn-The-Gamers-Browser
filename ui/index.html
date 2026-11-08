@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Respawn · The Gamers Browser</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Tab strip -->
+  <header id="tabstrip">
+    <div class="brand" title="Respawn"><img src="logo.png" alt="Respawn" /></div>
+    <div id="tabs" role="tablist"></div>
+    <button id="newtab" class="icon-btn" title="New tab (Ctrl+T)">
+      <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+    </button>
+    <div class="spacer"></div>
+    <button id="fullscreen-btn" class="pill" title="Full-screen game view: hides every bar so the page fills your screen">
+      <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z"/></svg>
+      <span class="label">Full screen</span><kbd class="pill-key" data-key-for="fullscreen"></kbd>
+    </button>
+    <button id="gamemode" class="pill" title="Game Mode (Ctrl+Shift+G): sleeps background tabs and lowers browser priority">
+      <span class="dot"></span><span class="label">Game Mode</span>
+    </button>
+  </header>
+
+  <!-- Toolbar -->
+  <nav id="toolbar">
+    <button class="icon-btn" data-nav="back" title="Back">
+      <svg viewBox="0 0 24 24"><path d="M15.4 6.4 14 5l-7 7 7 7 1.4-1.4L9.8 12z"/></svg>
+    </button>
+    <button class="icon-btn" data-nav="forward" title="Forward">
+      <svg viewBox="0 0 24 24"><path d="M8.6 6.4 10 5l7 7-7 7-1.4-1.4 5.6-5.6z"/></svg>
+    </button>
+    <button class="icon-btn" id="reload" data-nav="reload" title="Reload">
+      <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z"/></svg>
+    </button>
+    <button class="icon-btn" data-nav="home" title="Home">
+      <svg viewBox="0 0 24 24"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg>
+    </button>
+    <form id="omnibox">
+      <span id="shield" title="Ad & tracker blocking">
+        <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5z"/></svg>
+      </span>
+      <input id="address" spellcheck="false" autocomplete="off" placeholder="Search or enter address" />
+    </form>
+    <button class="icon-btn" id="capture-btn" title="Screen capture & markup (Ctrl+Shift+X)">
+      <svg viewBox="0 0 24 24"><path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+    </button>
+    <button id="accounts-btn" class="acct-pill" title="Saved accounts: open or switch">
+      <svg viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4 0-8 2-8 5v2h16v-2c0-3-4-5-8-5z"/></svg>
+      <span id="accounts-label">Accounts</span>
+      <svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+    </button>
+    <button class="icon-btn" id="help-btn" title="Take the tour: everything Respawn can do">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 17h-2v-2h2zm2.07-7.75-.9.92A3.4 3.4 0 0 0 13 15h-2v-.5a4 4 0 0 1 1.17-2.83l1.24-1.26A1.96 1.96 0 0 0 14 9a2 2 0 0 0-4 0H8a4 4 0 0 1 8 0 3.18 3.18 0 0 1-.93 2.25z"/></svg>
+    </button>
+    <button class="icon-btn" id="settings-btn" title="Settings">
+      <svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.3 7.3 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.3 7.3 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+    </button>
+  </nav>
+
+  <!-- Left rail: sidebar panels -->
+  <aside id="rail">
+    <button class="rail-btn" data-panel="discord" title="Chat (Discord)">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2zm4 6.5a1.5 1.5 0 1 0 0 .01zm4 0a1.5 1.5 0 1 0 0 .01zm4 0a1.5 1.5 0 1 0 0 .01z"/></svg>
+      <span>Chat</span>
+    </button>
+    <button class="rail-btn" data-panel="twitch" title="Streams (Twitch)">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18v12H3zm2 2v8h14V7zm5 1.5 5 2.5-5 2.5zM8 19h8v2H8z"/></svg>
+      <span>Live</span>
+    </button>
+    <button class="rail-btn" data-panel="youtube" title="Videos (YouTube)">
+      <svg viewBox="0 0 24 24"><path d="M10 8.5v7l6-3.5zM12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z"/></svg>
+      <span>Video</span>
+    </button>
+    <button class="rail-btn" data-panel="steam" title="Store (Steam)">
+      <svg viewBox="0 0 24 24"><path d="M7 8h10a5 5 0 0 1 4.6 7l-.9 2.1a2 2 0 0 1-3.3.6L15 15.5H9l-2.4 2.2a2 2 0 0 1-3.3-.6L2.4 15A5 5 0 0 1 7 8zm1 2.5v1.5H6.5v1.5H8V15h1.5v-1.5H11V12H9.5v-1.5zM16 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm2 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>
+      <span>Store</span>
+    </button>
+  </aside>
+
+  <!-- Web content is drawn here by native webviews -->
+  <main id="viewport">
+    <div class="viewport-hint">Loading…</div>
+  </main>
+
+  <!-- Status bar -->
+  <footer id="statusbar">
+    <div class="stat" title="RAM used by Respawn (all processes) vs. your cap">
+      <span class="k">RAM</span>
+      <div class="meter"><div id="mem-bar"></div></div>
+      <span id="mem-text" class="mono">— MB</span>
+    </div>
+    <div class="stat"><span class="k">Tabs</span><span id="tab-text" class="mono">0</span></div>
+    <div class="stat"><span class="k">Blocking</span><span id="block-text" class="mono">—</span></div>
+    <div class="spacer"></div>
+    <div class="hints mono" id="hints"></div>
+  </footer>
+
+  <!-- Settings modal -->
+  <div id="settings" class="modal" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>Settings</h2>
+        <button class="icon-btn" id="settings-close" title="Close">
+          <svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z" transform="translate(1 0)"/></svg>
+        </button>
+      </div>
+
+      <section>
+        <h3>Search</h3>
+        <label class="row">Search engine
+          <select id="s-engine">
+            <option value="duckduckgo">DuckDuckGo</option>
+            <option value="google">Google</option>
+            <option value="bing">Bing</option>
+            <option value="brave">Brave Search</option>
+          </select>
+        </label>
+      </section>
+
+      <section>
+        <h3>Discord &amp; translator</h3>
+        <label class="row">Chat sidebar shows servers &amp; channels, the tab shows the chat
+          <input id="s-dsplit" type="checkbox" />
+        </label>
+        <label class="col">DeepL API key (stays on this PC)
+          <input id="s-deepl" type="password" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx" />
+        </label>
+        <label class="row">Translate chat into
+          <select id="s-trto">
+            <option value="AR">Arabic</option>
+            <option value="BG">Bulgarian</option>
+            <option value="CS">Czech</option>
+            <option value="DA">Danish</option>
+            <option value="DE">German</option>
+            <option value="EL">Greek</option>
+            <option value="EN-GB">English (UK)</option>
+            <option value="EN-US">English (US)</option>
+            <option value="ES">Spanish</option>
+            <option value="ES-419">Spanish (Latin America)</option>
+            <option value="ET">Estonian</option>
+            <option value="FI">Finnish</option>
+            <option value="FR">French</option>
+            <option value="HE">Hebrew</option>
+            <option value="HU">Hungarian</option>
+            <option value="ID">Indonesian</option>
+            <option value="IT">Italian</option>
+            <option value="JA">Japanese</option>
+            <option value="KO">Korean</option>
+            <option value="LT">Lithuanian</option>
+            <option value="LV">Latvian</option>
+            <option value="NB">Norwegian</option>
+            <option value="NL">Dutch</option>
+            <option value="PL">Polish</option>
+            <option value="PT-BR">Portuguese (Brazil)</option>
+            <option value="PT-PT">Portuguese (Portugal)</option>
+            <option value="RO">Romanian</option>
+            <option value="RU">Russian</option>
+            <option value="SK">Slovak</option>
+            <option value="SL">Slovenian</option>
+            <option value="SV">Swedish</option>
+            <option value="TH">Thai</option>
+            <option value="TR">Turkish</option>
+            <option value="UK">Ukrainian</option>
+            <option value="VI">Vietnamese</option>
+            <option value="ZH-HANS">Chinese (simplified)</option>
+            <option value="ZH-HANT">Chinese (traditional)</option>
+          </select>
+        </label>
+        <label class="row">Translate new messages automatically
+          <input id="s-trauto" type="checkbox" />
+        </label>
+        <p class="note">In a Discord tab: translations appear under foreign-language messages. <b>Alt+click</b> a message to translate it,
+          <b>Alt+T</b> translates what you're typing into the "Reply in" language. The free DeepL plan includes 500,000 characters a month.</p>
+      </section>
+
+      <section>
+        <h3>Logins</h3>
+        <label class="row">Give each new tab its own separate logins
+          <input id="s-isolate" type="checkbox" />
+        </label>
+        <p class="note">Every tab remembers the account it's signed in to and always reopens to it, so several tabs can play different accounts of the same game. Links opened from a tab use that tab's login. Closing a tab forgets its login.</p>
+      </section>
+
+      <section>
+        <h3>Keyboard shortcuts</h3>
+        <p class="note">Click a shortcut, then press the keys you want. <kbd>Esc</kbd> cancels, <kbd>Backspace</kbd> removes it.
+          Shortcuts work everywhere in Respawn, including inside games. Single keys (like Q) still type normally in text boxes.</p>
+        <div id="keybinds"></div>
+        <div class="row"><span class="muted" id="kb-msg"></span><button type="button" id="kb-reset" class="ghost">Reset to defaults</button></div>
+      </section>
+
+      <section>
+        <h3>History</h3>
+        <label class="row">Reopen my tabs when Respawn starts
+          <input id="s-restore" type="checkbox" />
+        </label>
+        <label class="row">Remember sites for address-bar autofill
+          <input id="s-history" type="checkbox" />
+        </label>
+        <div class="row">Delete everything Respawn remembers
+          <button id="clear-history" class="ghost">Clear history</button>
+        </div>
+      </section>
+
+      <section>
+        <h3>Resource limiter</h3>
+        <p class="note">Background tabs always hibernate: they stay loaded (games keep running) but use minimal CPU and RAM.</p>
+        <label class="row">Automatically unload background tabs to save RAM
+          <input id="s-autounload" type="checkbox" />
+        </label>
+        <label class="row">RAM cap for auto-unload (MB)
+          <input id="s-mem" type="number" min="0" step="100" />
+        </label>
+        <label class="row">RAM cap in Game Mode (MB)
+          <input id="s-gmem" type="number" min="0" step="100" />
+        </label>
+        <label class="row">Unload idle background tabs after (min, 0 = never)
+          <input id="s-idle" type="number" min="0" step="5" />
+        </label>
+        <label class="row">Max renderer processes (0 = auto) <em>restart</em>
+          <input id="s-renderers" type="number" min="0" max="32" />
+        </label>
+      </section>
+
+      <section>
+        <h3>Ad &amp; tracker blocker</h3>
+        <label class="row">Enable blocking <em>restart</em>
+          <input id="s-adblock" type="checkbox" />
+        </label>
+        <label class="col">Extra blocked domains, one per line <em>restart</em>
+          <textarea id="s-extra" rows="4" spellcheck="false" placeholder="ads.example.com"></textarea>
+        </label>
+      </section>
+
+      <div class="sheet-foot">
+        <button type="button" id="tour-from-settings" class="ghost">Take the tour</button>
+        <button type="button" id="whatsnew-from-settings" class="ghost">What's new</button>
+        <span class="muted mono" id="app-version"></span>
+        <span class="muted">Items marked <em>restart</em> apply next time Respawn starts.</span>
+        <button id="settings-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Name an account slot -->
+  <div id="acct-modal" class="modal" hidden>
+    <form class="sheet small" id="acct-form">
+      <div class="sheet-head"><h2 id="acct-title">Rename tab</h2></div>
+      <section>
+        <label class="col">Account
+          <select id="acct-pick"></select>
+        </label>
+        <label class="col">Name (e.g. the in-game account name)
+          <input id="acct-name" maxlength="40" spellcheck="false" autocomplete="off" placeholder="Basketkase" />
+        </label>
+        <p class="note" id="acct-note">Saving a name remembers this account, so you can reopen it from <b>Accounts ▾</b> even after closing the tab.</p>
+      </section>
+      <div class="sheet-foot">
+        <button type="button" id="acct-cancel" class="ghost">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- What's new (shown after an update) -->
+  <div id="whatsnew" class="modal" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2 id="wn-title">What's new</h2>
+        <button class="icon-btn" id="wn-close" title="Close">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div id="wn-body"></div>
+      <div class="sheet-foot">
+        <span class="muted" id="wn-version"></span>
+        <button id="wn-ok" class="primary">Let's go</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" hidden></div>
+
+  <script src="app.js"></script>
+  <script src="tour.js"></script>
+  <script src="capture.js"></script>
+  <script src="whatsnew.js"></script>
+</body>
+</html>

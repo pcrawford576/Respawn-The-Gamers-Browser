@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Browser chrome (the 'ui' webview) may listen to events. Websites in tabs get no IPC access.",
+  "windows": ["main"],
+  "webviews": ["ui"],
+  "permissions": ["core:default"]
+}

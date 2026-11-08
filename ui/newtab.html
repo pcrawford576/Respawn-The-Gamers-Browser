@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>New Tab · Respawn</title>
+  <style>
+    :root { --bg:#0a0b10; --panel:#10121a; --panel-2:#161926; --line:#222638; --text:#e7e9f3; --muted:#7d829c; --accent:#3df5a7; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background:
+        radial-gradient(900px 500px at 50% -10%, rgba(61,245,167,.08), transparent 70%),
+        linear-gradient(transparent 0 calc(100% - 1px), rgba(255,255,255,.025) 0) 0 0 / 100% 32px,
+        var(--bg);
+      color: var(--text); font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+      display: flex; flex-direction: column; align-items: center; padding-top: 14vh;
+    }
+    .logo { width: 96px; height: 96px; border-radius: 22px; margin-bottom: 12px;
+      box-shadow: 0 0 40px rgba(61,245,167,.18); }
+    h1 {
+      margin: 0 0 6px; font-size: 13px; letter-spacing: .38em; text-transform: uppercase;
+      color: var(--accent); text-shadow: 0 0 14px rgba(61,245,167,.45); font-weight: 700;
+    }
+    .tagline { margin: 0 0 18px; font-size: 13px; letter-spacing: .04em; color: var(--accent);
+      opacity: .8; text-shadow: 0 0 10px rgba(61,245,167,.35); }
+    .clock { font: 600 54px/1 "Cascadia Mono", Consolas, monospace; letter-spacing: -.02em; margin-bottom: 26px; }
+    form { width: min(640px, 88vw); }
+    input {
+      width: 100%; height: 50px; padding: 0 20px; border-radius: 14px; outline: none;
+      background: var(--panel); border: 1px solid var(--line); color: var(--text); font-family: inherit; font-size: 15px;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(61,245,167,.12); }
+    .grid {
+      margin-top: 34px; width: min(780px, 92vw);
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
+    }
+    a.tile {
+      display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 8px 12px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      color: var(--text); text-decoration: none; font-size: 12.5px;
+      transition: transform .12s, border-color .12s, background .12s;
+    }
+    a.tile:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--panel-2); }
+    .glyph {
+      width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+      font: 700 15px "Cascadia Mono", Consolas, monospace; color: #04140d; background: var(--c, var(--accent));
+    }
+    .section { margin-top: 30px; color: var(--muted); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <img class="logo" src="logo.png" alt="" />
+  <h1>Respawn</h1>
+  <div class="tagline">The Gamers Browser</div>
+  <div class="clock" id="clock">--:--</div>
+  <form id="search">
+    <input id="q" autofocus autocomplete="off" spellcheck="false" placeholder="Search the web or type a URL" />
+  </form>
+
+  <div class="section">Quick launch</div>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const tiles = [
+      ['Steam', 'https://store.steampowered.com/', 'S', '#66c0f4'],
+      ['Epic Games', 'https://store.epicgames.com/', 'E', '#e7e9f3'],
+      ['GOG', 'https://www.gog.com/', 'G', '#c46cff'],
+      ['Twitch', 'https://www.twitch.tv/', 'T', '#a970ff'],
+      ['YouTube Gaming', 'https://www.youtube.com/gaming', 'Y', '#ff5c5c'],
+      ['r/gaming', 'https://www.reddit.com/r/gaming/', 'R', '#ff8b4d'],
+      ['IsThereAnyDeal', 'https://isthereanydeal.com/', '$', '#3df5a7'],
+      ['HowLongToBeat', 'https://howlongtobeat.com/', 'H', '#5ec8ff'],
+      ['PCGamingWiki', 'https://www.pcgamingwiki.com/', 'P', '#ffd166'],
+      ['Nexus Mods', 'https://www.nexusmods.com/', 'N', '#f7a440'],
+      ['SteamDB', 'https://steamdb.info/', 'D', '#9aa4c7'],
+      ['Speedrun', 'https://www.speedrun.com/', '⏱', '#ffcd3c'],
+    ];
+    const grid = document.getElementById('grid');
+    for (const [name, url, g, c] of tiles) {
+      const a = document.createElement('a');
+      a.className = 'tile'; a.href = url;
+      a.innerHTML = `<span class="glyph" style="--c:${c}">${g}</span><span></span>`;
+      a.lastChild.textContent = name;
+      grid.appendChild(a);
+    }
+
+    // The search box hands off to Respawn, which applies your chosen search engine.
+    document.getElementById('search').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = document.getElementById('q').value.trim();
+      if (q) location.href = 'https://respawn.invalid/search?q=' + encodeURIComponent(q);
+    });
+
+    const tick = () => {
+      const d = new Date();
+      document.getElementById('clock').textContent =
+        d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+    tick(); setInterval(tick, 10000);
+  </script>
+</body>
+</html>

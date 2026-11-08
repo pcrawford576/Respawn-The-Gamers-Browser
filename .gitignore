@@ -1,0 +1,21 @@
+# Build output
+src-tauri/target/
+src-tauri/gen/
+
+# Editors
+.idea/
+.vscode/
+*.iml
+
+# Android build output and machine-specific files (see also android/.gitignore)
+android/.kotlin/
+android/local.properties
+android/app/release/
+
+# Signing keys and passwords - never upload these
+*.jks
+*.keystore
+keystore.properties
+*.pfx
+*.p12
+.env
