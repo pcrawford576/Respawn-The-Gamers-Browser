@@ -12,8 +12,8 @@ Do these once. After that, every release is one command:
    then copy the `...@users.noreply.github.com` address shown there):
 
    ```powershell
-   git config --global user.name  "YOUR-GITHUB-NAME"
-   git config --global user.email "12345678+YOUR-GITHUB-NAME@users.noreply.github.com"
+   git config --global user.name  "pcrawford576"
+   git config --global user.email "12345678+pcrawford576@users.noreply.github.com"
    ```
 
 ## 2. Create the public repository and upload the code (GitHub Desktop)
@@ -57,10 +57,10 @@ installer then appears under **Releases**, marked "not code signed yet".
 Go to <https://signpath.org/apply> and fill in the form:
 
 - Project name: **Respawn**
-- Repository: `https://github.com/YOUR-GITHUB-NAME/respawn`
+- Repository: `https://github.com/pcrawford576/Respawn-The-Gamers-Browser`
 - License: **MIT**
-- Download page: `https://github.com/YOUR-GITHUB-NAME/respawn/releases`
-- Code signing policy: `https://github.com/YOUR-GITHUB-NAME/respawn/blob/main/CODE_SIGNING_POLICY.md`
+- Download page: `https://github.com/pcrawford576/Respawn-The-Gamers-Browser/releases`
+- Code signing policy: `https://github.com/pcrawford576/Respawn-The-Gamers-Browser/blob/main/CODE_SIGNING_POLICY.md`
 - Build system: **GitHub Actions**
 
 Approval usually takes a few days. You'll get a SignPath account; turn on two-factor
