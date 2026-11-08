@@ -4,6 +4,7 @@ Write notes for the next build under "Unreleased" (one "- " line per change).
 release.ps1 turns them into the new version's notes when you build.
 
 ## Unreleased
+- Added a Support Respawn (PayPal donation) link to the GitHub page.
 
 ## 0.1.3 - 2026-11-08
 - New name: Respawn, The Gamers Browser, with the new logo and the tagline on the new-tab page and window title.

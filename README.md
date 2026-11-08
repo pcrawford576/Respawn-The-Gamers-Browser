@@ -10,6 +10,12 @@ few MB instead of shipping a whole copy of Chromium.
 Get the latest Windows installer from the [Releases](../../releases) page. Running a newer
 installer over an existing install upgrades Respawn and keeps your settings, accounts and tabs.
 
+## Support Respawn
+
+Respawn is free and open source. If it helps your gaming, you can support its development:
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/pcrawford576)
+
 ## Features
 
 | Feature | How it works |
