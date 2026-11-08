@@ -84,7 +84,7 @@
       target: '#fullscreen-btn',
       title: 'Full-screen game view',
       body: `Hides every bar and fills your whole screen with the page — just the game.<br><br>
-             Press ${K('F12')} (or this button) to go in and out — ${K('Esc')} also leaves full screen.
+             Press ${K('F12')} (or this button) to go in, and the same key again to come out.
              A small badge at the top shows which account you're on; click it to switch accounts. Your tab keys still work in full screen, so you can
              flip between all your accounts. All shortcuts can be changed in Settings.`,
     },

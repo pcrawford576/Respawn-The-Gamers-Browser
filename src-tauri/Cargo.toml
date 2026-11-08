@@ -1,6 +1,6 @@
 [package]
 name = "respawn"
-version = "0.1.3"
+version = "0.1.4"
 description = "Respawn - The Gamers Browser"
 edition = "2021"
 

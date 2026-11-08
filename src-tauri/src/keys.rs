@@ -212,16 +212,6 @@ pub const FS_BADGE_JS: &str = r#"
     });
     host.addEventListener('mouseenter', wake);
   };
-  // Esc leaves full screen (the badge is only shown in full screen).
-  // Not while typing in a text box, where Esc usually cancels the typing.
-  addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || e.repeat || !host || !host.isConnected) return;
-    const t = e.composedPath ? e.composedPath()[0] : e.target;
-    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''))) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    open('https://respawn.invalid/key?a=fullscreen', '_blank');
-  }, true);
   window.__respawnFs = (s) => {
     if (!s || !s.show) { if (host) { host.remove(); host = null; } return; }
     if (!host) build();

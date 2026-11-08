@@ -285,12 +285,6 @@ const comboOf = (e) => {
 document.addEventListener('keydown', (e) => {
   if (!$('#settings').hidden || !$('#acct-modal').hidden || e.repeat) return;
   const typing = e.target.closest && e.target.closest('input, textarea, select');
-  // Esc leaves full screen.
-  if (e.key === 'Escape' && state?.fullscreen && !typing) {
-    e.preventDefault();
-    invoke('run_action', { action: 'fullscreen' });
-    return;
-  }
   // ← / → also switch tabs while the browser bar has focus.
   if (!typing && !e.ctrlKey && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     e.preventDefault();
