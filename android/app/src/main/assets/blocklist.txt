@@ -7,6 +7,8 @@ doubleclick.net
 googlesyndication.com
 googleadservices.com
 google-analytics.com
+analytics.google.com
+googletagmanager.com
 googletagservices.com
 adservice.google.com
 pagead2.googlesyndication.com

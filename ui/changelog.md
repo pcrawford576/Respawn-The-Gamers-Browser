@@ -4,6 +4,7 @@ Write notes for the next build under "Unreleased" (one "- " line per change).
 release.ps1 turns them into the new version's notes when you build.
 
 ## Unreleased
+- The ad & tracker blocker now also blocks Google Tag Manager and Google Analytics (analytics.google.com).
 
 ## 0.1.4 - 2026-11-08
 - Esc no longer leaves full screen, so it's free for games. Press the full-screen key (F12 unless you changed it) again to leave.

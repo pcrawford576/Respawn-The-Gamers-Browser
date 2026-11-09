@@ -1,10 +1,14 @@
 package gg.respawn.browser
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.app.Dialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.app.DownloadManager
 import android.content.ComponentCallbacks2
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -55,10 +59,13 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.webkit.ProfileStore
+import androidx.webkit.ScriptHandler
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import kotlin.math.max
+import org.json.JSONObject
+import org.json.JSONTokener
 
 class MainActivity : AppCompatActivity() {
 
@@ -92,6 +99,25 @@ class MainActivity : AppCompatActivity() {
 
     /** Separate logins per tab need Android System WebView 123+. */
     private val multiProfile by lazy { WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE) }
+    private val docStartScripts by lazy { WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) }
+    /** The Performance script installed in each WebView, so it can be swapped when the setting changes. */
+    private val perfScripts = mutableMapOf<WebView, ScriptHandler>()
+    private val gameScripts = mutableMapOf<WebView, ScriptHandler>()
+    /** Latest Game memory report reading, its peaks, and whether the game has since run out of memory. */
+    private var memReport: JSONObject? = null
+    private val memPeak = HashMap<String, Int>()
+    private var memCrashed = false
+    private val memPoll = object : Runnable {
+        override fun run() {
+            val t = active
+            val wv = t?.webView
+            if (t != null && wv != null && isTotalBattle(Uri.parse(t.url).host)) {
+                wv.evaluateJavascript(MEM_READ_JS) { r -> onMemReading(r) }
+            }
+            handler.postDelayed(this, 3000)
+        }
+    }
+    private var timersPaused = false
     private lateinit var desktopUa: String
     private lateinit var mobileUa: String
 
@@ -240,6 +266,12 @@ class MainActivity : AppCompatActivity() {
         wv.webViewClient = TabClient(tab)
         wv.webChromeClient = TabChrome(tab)
         wv.setDownloadListener { url, ua, disposition, mime, _ -> download(url, ua, disposition, mime, tab.profile) }
+        // Hidden tabs don't keep the page renderer's priority up, so Android can
+        // reclaim it before it has to close Respawn.
+        wv.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
+        installPerfScript(wv)
+        // A tab created after timers were paused in the background would start frozen.
+        if (timersPaused) { wv.resumeTimers(); timersPaused = false }
         wv.visibility = View.GONE
         content.addView(wv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         tab.webView = wv
@@ -248,11 +280,146 @@ class MainActivity : AppCompatActivity() {
 
     private fun destroyWebView(tab: Tab) {
         tab.webView?.let { wv ->
+            perfScripts.remove(wv)?.let { runCatching { it.remove() } }
+            gameScripts.remove(wv)?.let { runCatching { it.remove() } }
             content.removeView(wv)
             wv.stopLoading()
             wv.destroy()
         }
         tab.webView = null
+    }
+
+    // ------------------------------------------------------------ performance
+
+    private fun perfScript(): String {
+        val fps = if (store.performance == 2) "30" else "60"   // Battery saver / Balanced (Sharp installs no script)
+        val (long, short) = when (store.gameResolution) {
+            1 -> "1920" to "1080"
+            2 -> "0" to "0"          // phone screen
+            else -> "1280" to "720"  // 720p
+        }
+        return PERF_JS.replace("__LONG__", long).replace("__SHORT__", short)
+            .replace("__FPS__", fps).replace("__WIDTH__", "1280")
+    }
+
+    @SuppressLint("RequiresFeature")
+    private fun installPerfScript(wv: WebView) {
+        if (!docStartScripts) return
+        perfScripts.remove(wv)?.let { runCatching { it.remove() } }
+        gameScripts.remove(wv)?.let { runCatching { it.remove() } }
+        val game = GAME_JS.replace("__LITEGL__", if (store.performance != 0) "true" else "false")
+            .replace("__MUTE__", if (store.gameSound) "false" else "true")
+            .replace("__TRIM__", if (store.trimHeap) "true" else "false")
+            .replace("__LOWTEX__", if (store.lowTextures) "true" else "false")
+            .replace("__TOUCHMOUSE__", if (store.touchMouse) "true" else "false")
+        runCatching { gameScripts[wv] = WebViewCompat.addDocumentStartJavaScript(wv, game, setOf("*")) }
+        if (store.performance == 0) return
+        runCatching { perfScripts[wv] = WebViewCompat.addDocumentStartJavaScript(wv, perfScript(), setOf("*")) }
+    }
+
+    private fun setPerformance(level: Int) {
+        if (level == store.performance) return
+        store.performance = level
+        reinstallGameScripts()
+    }
+
+    private fun setGameSound(on: Boolean) {
+        store.gameSound = on
+        reinstallGameScripts()
+    }
+
+    /** Applies changed game settings to every tab, then offers to reload the game. */
+    private fun reinstallGameScripts() {
+        tabs.forEach { t -> t.webView?.let { installPerfScript(it) } }
+        if (!docStartScripts) {
+            toast("Update \"Android System WebView\" in the Play Store to use this setting")
+            return
+        }
+        val tab = active
+        val onGame = tab?.webView != null && isTotalBattle(Uri.parse(tab.url).host)
+        if (!onGame) { toast("Applies the next time a game loads"); return }
+        AlertDialog.Builder(this)
+            .setTitle("Reload the game?")
+            .setMessage("The new setting applies when the game reloads.")
+            .setPositiveButton("Reload now") { _, _ -> tab?.webView?.reload() }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
+    /** Game tabs turn sideways (games are built for wide screens; upright they draw ~3x more). */
+    private fun applyOrientation() {
+        val t = active
+        val game = store.gameLandscape && t != null && isTotalBattle(Uri.parse(t.url).host)
+        val want = if (game) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        if (requestedOrientation != want) requestedOrientation = want
+    }
+
+    private fun onMemReading(raw: String?) {
+        val json = runCatching { JSONTokener(raw ?: "").nextValue() as? String }.getOrNull()
+        if (json.isNullOrEmpty()) return
+        val r = runCatching { JSONObject(json) }.getOrNull() ?: return
+        memReport = r
+        memCrashed = false
+        for (k in listOf("wasmMB", "texMB", "texCompressedMB", "audioMB", "jsMB")) {
+            val v = r.optInt(k, -1)
+            if (v >= 0) memPeak[k] = max(memPeak[k] ?: 0, v)
+        }
+    }
+
+    private fun showMemReport() {
+        val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        val mi = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        val sb = StringBuilder()
+        sb.append("Phone memory: ${mi.totalMem / 1_048_576} MB, ${mi.availMem / 1_048_576} MB free right now\n")
+        sb.append("Settings: ${listOf("Sharp", "Balanced", "Battery saver")[store.performance]}, " +
+            "${listOf("720p", "1080p", "phone screen")[store.gameResolution]}, game sound ${if (store.gameSound) "on" else "off"}, " +
+            "sideways ${if (store.gameLandscape) "on" else "off"}, tighter memory ${if (store.trimHeap) "on" else "off"}, " +
+            "lower-quality graphics ${if (store.lowTextures) "on" else "off"}, touch as mouse ${if (store.touchMouse) "on" else "off"}\n\n")
+        val r = memReport
+        if (r == null) {
+            sb.append("No reading yet. Open Total Battle, wait until it loads (or runs out of memory), then open this again.")
+        } else {
+            if (memCrashed) sb.append("Last reading before the game ran out of memory:\n")
+            fun line(label: String, key: String) {
+                val v = r.optInt(key, -1)
+                if (v >= 0) sb.append("$label: $v MB (highest ${memPeak[key] ?: v} MB)\n")
+            }
+            line("Game engine", "wasmMB")
+            line("Textures, uncompressed (approx.)", "texMB")
+            line("Textures, compressed", "texCompressedMB")
+            line("Unpacked sound", "audioMB")
+            line("JavaScript", "jsMB")
+            sb.append("Textures loaded: ${r.optInt("textures")}, sound clips: ${r.optInt("audioClips")}\n")
+            sb.append("Engine memory grew ${r.optInt("grows")} times (${r.optInt("trimmed")} big steps refused)\n")
+            if (r.optString("wasmAsk").isNotEmpty()) sb.append("Game engine asked for: ${r.optString("wasmAsk")}\n")
+            if (r.optBoolean("lowtex")) {
+                sb.append("Lower-quality graphics: ${r.optInt("shrunk")} textures halved, about ${r.optInt("savedMB")} MB saved\n")
+                sb.append("Not halved: ${r.optInt("skipSmallMB")} MB small, ${r.optInt("skipTargetMB")} MB drawing targets, " +
+                    "${r.optInt("skipFormatMB")} MB other formats${r.optString("skipFormats").let { if (it.isEmpty()) "" else " ($it)" }}\n")
+                if (r.optInt("rtShrunk") > 0) sb.append("Warning: ${r.optInt("rtShrunk")} halved textures are drawn into; if you see glitches, turn lower-quality graphics off\n")
+            }
+            sb.append("Drawing size: ${r.optString("canvas").ifEmpty { "unknown" }}, anti-aliasing ${if (r.optBoolean("aa")) "on" else "off"}\n")
+            sb.append("Texture types this phone supports: ${r.optString("formats").ifEmpty { "unknown" }}\n")
+            if (r.optString("hosts").isNotEmpty()) {
+                // "host (n), host (n)": mark the ones the blocker stops.
+                val marked = r.optString("hosts").split(", ").joinToString(", ") { item ->
+                    val host = item.substringBefore(" (")
+                    if (store.adblock && AdBlock.isBlocked(host)) "$item blocked" else item
+                }
+                sb.append("Outside sites the game page asks for: $marked\n")
+            }
+        }
+        val text = sb.toString()
+        AlertDialog.Builder(this)
+            .setTitle("Game memory report")
+            .setMessage(text)
+            .setPositiveButton("Copy") { _, _ ->
+                (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
+                    .setPrimaryClip(ClipData.newPlainText("Respawn memory report", text))
+                toast("Copied")
+            }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private inner class TabClient(val tab: Tab) : WebViewClient() {
@@ -293,6 +460,10 @@ class MainActivity : AppCompatActivity() {
 
         override fun onPageFinished(view: WebView, url: String) {
             tab.url = url
+            // Zoom the game out to fit the screen (smallest zoom = page width).
+            if (store.performance != 0 && isTotalBattle(Uri.parse(url).host)) {
+                view.postDelayed({ runCatching { view.zoomBy(0.01f) } }, 1500)
+            }
             view.title?.let { if (it.isNotBlank() && !it.startsWith("http")) tab.title = it }
             if (store.saveHistory) history.record(url)
             renderTabs()
@@ -303,17 +474,19 @@ class MainActivity : AppCompatActivity() {
         // Catches single-page-app navigation (no full page load).
         override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
             tab.url = url
-            if (tab === active) updateAddress()
+            if (tab === active) { updateAddress(); applyOrientation() }
         }
 
         // The page's renderer crashed or Android killed it to free memory.
         // Without handling this the whole app would close.
         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
             val wasActive = tab === active
+            if (wasActive && memReport != null) memCrashed = true
             destroyWebView(tab)
             if (wasActive) {
-                // Every other tab shares the same page process, so free them all.
+                // Every other tab and sidebar panel shares the same page process, so free them all.
                 tabs.filter { it !== tab }.forEach { destroyWebView(it) }
+                destroyPanels()
                 val now = System.currentTimeMillis()
                 if (now - lastRendererLoss > 60_000) {
                     lastRendererLoss = now
@@ -322,7 +495,7 @@ class MainActivity : AppCompatActivity() {
                     showActive()
                 } else {
                     // Second time within a minute: stop instead of looping.
-                    toast("Not enough memory for this page. Close other apps, then tap Reload.")
+                    toast("Not enough memory for this game. See ⋮ → Game memory report.")
                 }
             }
             renderTabs()
@@ -487,6 +660,7 @@ class MainActivity : AppCompatActivity() {
         }
         if (tab.webView == null) createWebView(tab).loadUrl(tab.url) // was unloaded
         showActive()
+        applyOrientation()
         renderTabs()
         updateAddress()
         updateProgress()
@@ -835,6 +1009,21 @@ class MainActivity : AppCompatActivity() {
         m.add(0, 6, 5, "Separate login for each new tab").apply { isCheckable = true; isChecked = store.isolateTabs }
         m.add(0, 7, 6, "Remember sites (history)").apply { isCheckable = true; isChecked = store.saveHistory }
         m.add(0, 11, 10, "Save memory: one tab loaded at a time").apply { isCheckable = true; isChecked = store.oneAtATime }
+        m.add(0, 12, 11, "Pause games when you leave the app").apply { isCheckable = true; isChecked = store.pauseInBackground }
+        m.add(0, 15, 13, "Game sound (off saves memory)").apply { isCheckable = true; isChecked = store.gameSound }
+        m.add(0, 16, 15, "Turn games sideways").apply { isCheckable = true; isChecked = store.gameLandscape }
+        m.add(0, 17, 16, "Experimental: tighter game memory").apply { isCheckable = true; isChecked = store.trimHeap }
+        m.add(0, 18, 16, "Lower-quality game graphics (saves memory)").apply { isCheckable = true; isChecked = store.lowTextures }
+        m.add(0, 20, 16, "Touch works as mouse in games").apply { isCheckable = true; isChecked = store.touchMouse }
+        m.add(0, 14, 17, "Game memory report")
+        val perf = m.addSubMenu(0, 13, 12, "Game performance")
+        listOf("Sharp (no limits, most battery)", "Balanced (60 FPS, recommended)", "Battery saver (30 FPS)")
+            .forEachIndexed { i, label -> perf.add(2, 200 + i, i, label).apply { isChecked = store.performance == i } }
+        perf.setGroupCheckable(2, true, true)
+        val res = m.addSubMenu(0, 19, 12, "Game resolution")
+        listOf("720p (recommended)", "1080p", "Phone screen (sharpest)")
+            .forEachIndexed { i, label -> res.add(3, 300 + i, i, label).apply { isChecked = store.gameResolution == i } }
+        res.setGroupCheckable(3, true, true)
         val engines = m.addSubMenu(0, 8, 7, "Search engine")
         listOf("duckduckgo" to "DuckDuckGo", "google" to "Google", "bing" to "Bing", "brave" to "Brave Search")
             .forEachIndexed { i, (key, label) ->
@@ -854,6 +1043,33 @@ class MainActivity : AppCompatActivity() {
                 in 100..103 -> store.searchEngine = listOf("duckduckgo", "google", "bing", "brave")[it.itemId - 100]
                 9 -> { history.clear(); toast("History cleared") }
                 10 -> drawer.openDrawer(Gravity.START)
+                12 -> {
+                    store.pauseInBackground = !store.pauseInBackground
+                    toast(if (store.pauseInBackground) "Games pause while Respawn is in the background" else "Games keep running in the background (uses more battery)")
+                }
+                in 200..202 -> setPerformance(it.itemId - 200)
+                in 300..302 -> if (store.gameResolution != it.itemId - 300) {
+                    store.gameResolution = it.itemId - 300
+                    if (store.performance == 0) toast("Resolution applies on Balanced or Battery saver")
+                    reinstallGameScripts()
+                }
+                14 -> showMemReport()
+                15 -> setGameSound(!store.gameSound)
+                16 -> { store.gameLandscape = !store.gameLandscape; applyOrientation() }
+                20 -> {
+                    store.touchMouse = !store.touchMouse
+                    reinstallGameScripts()
+                }
+                18 -> {
+                    store.lowTextures = !store.lowTextures
+                    if (store.lowTextures) toast("Large game graphics are stored at half size")
+                    reinstallGameScripts()
+                }
+                17 -> {
+                    store.trimHeap = !store.trimHeap
+                    if (store.trimHeap) toast("If the game stops loading, turn this off again")
+                    reinstallGameScripts()
+                }
                 11 -> {
                     store.oneAtATime = !store.oneAtATime
                     toast(if (store.oneAtATime) "Other tabs unload when you switch (\"Keep loaded\" tabs stay)" else "All visited tabs stay loaded — may run out of memory with games")
@@ -888,6 +1104,11 @@ class MainActivity : AppCompatActivity() {
                 v.webViewClient = object : WebViewClient() {
                     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                         if (store.adblock && AdBlock.isBlocked(request.url.host)) AdBlock.emptyResponse() else null
+                    // Without this, Android closes Respawn when the shared page process runs out of memory.
+                    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                        destroyPanels()
+                        return true
+                    }
                 }
                 v.webChromeClient = WebChromeClient()
                 v.loadUrl(url)
@@ -899,6 +1120,15 @@ class MainActivity : AppCompatActivity() {
             val tv = row.getChildAt(i) as TextView
             tv.setTextColor(ContextCompat.getColor(this, if (tv.text == label) R.color.accent else R.color.muted))
         }
+    }
+
+    /** Frees the sidebar panels (Discord etc.); they reload when opened again. */
+    private fun destroyPanels() {
+        panelViews.values.forEach { v ->
+            panelContainer.removeView(v)
+            runCatching { v.stopLoading(); v.destroy() }
+        }
+        panelViews.clear()
     }
 
     // ------------------------------------------------------- fullscreen, back
@@ -962,23 +1192,37 @@ class MainActivity : AppCompatActivity() {
         val pressure = level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW && level < ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
         if (pressure) {
             tabs.filter { it !== active && !it.pinned && it.webView != null }.minByOrNull { it.lastActive }?.let { unload(it) }
+            if (!drawer.isDrawerOpen(Gravity.START)) destroyPanels()
         }
     }
 
     override fun onLowMemory() {
         super.onLowMemory()
         tabs.filter { it !== active && !it.pinned }.forEach { unload(it) }
+        if (!drawer.isDrawerOpen(Gravity.START)) destroyPanels()
     }
 
     // -------------------------------------------------------------- lifecycle
 
     override fun onResume() {
         super.onResume()
-        active?.webView?.onResume()
+        if (timersPaused) {
+            tabs.firstNotNullOfOrNull { it.webView }?.resumeTimers()
+            timersPaused = false
+        }
+        showActive()
+        handler.removeCallbacks(memPoll)
+        handler.post(memPoll)
     }
 
     override fun onPause() {
         super.onPause()
+        handler.removeCallbacks(memPoll)
+        // Stop games drawing and running timers while Respawn isn't on screen.
+        if (store.pauseInBackground) {
+            tabs.forEach { it.webView?.onPause() }
+            tabs.firstNotNullOfOrNull { it.webView }?.let { it.pauseTimers(); timersPaused = true }
+        }
         handler.removeCallbacks(saveRunnable)
         saveRunnable.run()
         // Make sure logins are written to disk.
@@ -991,7 +1235,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         tabs.forEach { destroyWebView(it) }
-        panelViews.values.forEach { it.destroy() }
+        destroyPanels()
         super.onDestroy()
     }
 
