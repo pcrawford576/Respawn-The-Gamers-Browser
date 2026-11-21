@@ -65,6 +65,8 @@ pub struct Settings {
     pub keybinds: std::collections::BTreeMap<String, String>,
     /// Last version whose "What's new" notes you've seen.
     pub last_seen_version: String,
+    /// Auto clicker: milliseconds between left clicks.
+    pub autoclick_ms: u64,
 }
 
 impl Default for Settings {
@@ -93,6 +95,7 @@ impl Default for Settings {
             auto_translate: true,
             keybinds: crate::keys::defaults(),
             last_seen_version: String::new(),
+            autoclick_ms: 100,
         }
     }
 }

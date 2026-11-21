@@ -94,6 +94,10 @@ svg { width: 18px; height: 18px; fill: currentColor; display: block; }
 .pill:hover { color: var(--text); border-color: #33384f; }
 body.game .pill { color: #fff; border-color: var(--game); background: var(--game-dim); }
 body.game .pill .dot { background: var(--game); box-shadow: 0 0 8px var(--game); }
+#autoclick-pill[hidden] { display: none; }
+#autoclick-pill { color: #fff; border-color: var(--accent); background: var(--accent-dim); }
+#autoclick-pill .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: ac-blink 1s steps(2) infinite; }
+@keyframes ac-blink { 50% { opacity: .25; } }
 
 /* ---------- toolbar ---------- */
 #toolbar {

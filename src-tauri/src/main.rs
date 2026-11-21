@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod adblock;
+mod autoclick;
 mod capture;
 mod discord;
 mod history;
@@ -110,6 +111,7 @@ struct Snapshot {
     game_mode: bool,
     fullscreen: bool,
     adblock_active: bool,
+    autoclick: bool,
     settings: Settings,
 }
 
@@ -134,6 +136,7 @@ fn snapshot(b: &Browser) -> Snapshot {
         game_mode: b.game_mode,
         fullscreen: b.fullscreen,
         adblock_active: adblock::enabled(),
+        autoclick: autoclick::running(),
         settings: b.settings.clone(),
     }
 }
@@ -370,7 +373,7 @@ fn handle_bridge_window(app: &AppHandle, url: &Url, source: &str, account: u32) 
     match url.path() {
         "/key" => {
             // A keyboard shortcut pressed inside a page or game.
-            if let Some(action) = get("a").filter(|a| keys::is_action(a) && a != keys::GLOBAL_ACTION) {
+            if let Some(action) = get("a").filter(|a| keys::is_action(a) && !keys::is_global_action(a)) {
                 let a = app.clone();
                 tauri::async_runtime::spawn(async move { keys::run_action(&a, &action) });
             }
@@ -917,6 +920,7 @@ async fn save_settings(app: AppHandle, webview: Webview, settings: Settings) -> 
     guard(&webview)?;
     let mut settings = settings;
     keys::complete(&mut settings.keybinds);
+    settings.autoclick_ms = settings.autoclick_ms.max(autoclick::MIN_INTERVAL_MS);
     settings::save(&app, &settings);
     app.state::<Mutex<Browser>>().lock().unwrap().settings = settings;
     emit_state(&app);
@@ -1433,9 +1437,9 @@ fn main() {
                     let app = app.clone();
                     let sc = shortcut.clone();
                     tauri::async_runtime::spawn(async move {
-                        // The Game Mode shortcut works in any program.
-                        if keys::is_global(&sc) {
-                            keys::run_action(&app, keys::GLOBAL_ACTION);
+                        // Game Mode and the auto clicker work in any program.
+                        if let Some(action) = keys::global_action(&sc) {
+                            keys::run_action(&app, &action);
                         }
                     });
                 })
@@ -1556,9 +1560,8 @@ fn main() {
                 }
             }
 
-            let game_keys = app.state::<Mutex<Browser>>().lock().unwrap().settings.keybinds
-                .get(keys::GLOBAL_ACTION).cloned().unwrap_or_default();
-            keys::register_global(&handle, &game_keys);
+            let binds = app.state::<Mutex<Browser>>().lock().unwrap().settings.keybinds.clone();
+            keys::register_globals(&handle, &binds);
 
             perf::start_monitor(handle);
             Ok(())

@@ -4,7 +4,10 @@ Write notes for the next build under "Unreleased" (one "- " line per change).
 release.ps1 turns them into the new version's notes when you build.
 
 ## Unreleased
+
+## 0.1.5 - 2026-11-21
 - The ad & tracker blocker now also blocks Google Tag Manager and Google Analytics (analytics.google.com).
+- New auto clicker: press F11 to start left-clicking wherever your mouse is (works in any program), and F11 again to stop. Change the key in Settings → Keyboard shortcuts and the click speed in Settings → Auto clicker.
 
 ## 0.1.4 - 2026-11-08
 - Esc no longer leaves full screen, so it's free for games. Press the full-screen key (F12 unless you changed it) again to leave.
