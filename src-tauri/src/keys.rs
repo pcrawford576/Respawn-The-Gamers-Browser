@@ -2,10 +2,10 @@
 //!
 //! Shortcuts work everywhere in Respawn: in the browser bar (app.js), and inside
 //! web pages and games via a small injected script that signals Rust through the
-//! respawn.invalid bridge. Game Mode is a system-wide hotkey so it also works
-//! while a desktop game has focus.
+//! respawn.invalid bridge. Game Mode and the auto clicker are system-wide
+//! hotkeys so they also work while a desktop game has focus.
 
-use crate::{add_tab, cycle_tab, do_close_tab, emit_state, perf, relayout, Browser};
+use crate::{add_tab, autoclick, cycle_tab, do_close_tab, emit_state, perf, relayout, Browser};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -22,10 +22,15 @@ pub const ACTIONS: &[(&str, &str)] = &[
     ("close_tab", "Ctrl+W"),
     ("reload", "Ctrl+R"),
     ("address", "Ctrl+L"),
+    ("autoclick", "F11"),
 ];
 
-/// Handled system-wide (works in any program), so pages and the bar skip it.
-pub const GLOBAL_ACTION: &str = "game_mode";
+/// Handled system-wide (work in any program), so pages and the bar skip them.
+pub const GLOBAL_ACTIONS: &[&str] = &["game_mode", "autoclick"];
+
+pub fn is_global_action(a: &str) -> bool {
+    GLOBAL_ACTIONS.contains(&a)
+}
 
 pub fn defaults() -> BTreeMap<String, String> {
     ACTIONS.iter().map(|(a, k)| (a.to_string(), k.to_string())).collect()
@@ -80,11 +85,11 @@ const KEYS_JS: &str = r#"
 })();
 "#;
 
-/// combo → action, without the system-wide one.
+/// combo → action, without the system-wide ones.
 fn page_map(binds: &BTreeMap<String, String>) -> String {
     let m: BTreeMap<&str, &str> = binds
         .iter()
-        .filter(|(a, k)| a.as_str() != GLOBAL_ACTION && !k.is_empty())
+        .filter(|(a, k)| !is_global_action(a) && !k.is_empty())
         .map(|(a, k)| (k.as_str(), a.as_str()))
         .collect();
     serde_json::to_string(&m).unwrap_or_else(|_| "{}".into())
@@ -94,7 +99,7 @@ pub fn page_script(binds: &BTreeMap<String, String>) -> String {
     KEYS_JS.replace("__MAP__", &page_map(binds))
 }
 
-/// After the shortcuts change: update every open page and the global hotkey.
+/// After the shortcuts change: update every open page and the global hotkeys.
 pub fn apply(app: &AppHandle) {
     let binds = app.state::<Mutex<Browser>>().lock().unwrap().settings.keybinds.clone();
     let js = format!("window.__respawnSetKeys && window.__respawnSetKeys({})", page_map(&binds));
@@ -103,36 +108,41 @@ pub fn apply(app: &AppHandle) {
             let _ = wv.eval(&js);
         }
     }
-    register_global(app, binds.get(GLOBAL_ACTION).map(String::as_str).unwrap_or(""));
+    register_globals(app, &binds);
 }
 
-static GLOBAL: Mutex<Option<Shortcut>> = Mutex::new(None);
+/// Registered system-wide hotkeys and the action each one runs.
+static GLOBAL: Mutex<Vec<(Shortcut, String)>> = Mutex::new(Vec::new());
 
-/// (Re)registers the system-wide Game Mode hotkey.
-pub fn register_global(app: &AppHandle, combo: &str) {
+/// (Re)registers the system-wide hotkeys (Game Mode, auto clicker).
+pub fn register_globals(app: &AppHandle, binds: &BTreeMap<String, String>) {
     let gs = app.global_shortcut();
     let mut cur = GLOBAL.lock().unwrap();
-    if let Some(old) = cur.take() {
+    for (old, _) in cur.drain(..) {
         let _ = gs.unregister(old);
     }
-    if combo.is_empty() {
-        return;
-    }
-    match combo.parse::<Shortcut>() {
-        Ok(sc) => match gs.register(sc.clone()) {
-            Ok(()) => *cur = Some(sc),
-            Err(e) => {
-                let _ = app.emit("toast", format!("{combo} is already used by another program: {e}"));
+    for action in GLOBAL_ACTIONS {
+        let combo = binds.get(*action).map(String::as_str).unwrap_or("");
+        if combo.is_empty() {
+            continue;
+        }
+        match combo.parse::<Shortcut>() {
+            Ok(sc) => match gs.register(sc.clone()) {
+                Ok(()) => cur.push((sc, action.to_string())),
+                Err(e) => {
+                    let _ = app.emit("toast", format!("{combo} is already used by another program: {e}"));
+                }
+            },
+            Err(_) => {
+                let _ = app.emit("toast", format!("{combo} can't be used as a system-wide shortcut"));
             }
-        },
-        Err(_) => {
-            let _ = app.emit("toast", format!("{combo} can't be used as a system-wide shortcut"));
         }
     }
 }
 
-pub fn is_global(sc: &Shortcut) -> bool {
-    GLOBAL.lock().unwrap().as_ref() == Some(sc)
+/// The action for a pressed system-wide hotkey, if it is one of ours.
+pub fn global_action(sc: &Shortcut) -> Option<String> {
+    GLOBAL.lock().unwrap().iter().find(|(s, _)| s == sc).map(|(_, a)| a.clone())
 }
 
 /// Runs a shortcut's action.
@@ -145,6 +155,7 @@ pub fn run_action(app: &AppHandle, action: &str) {
             let on = !app.state::<Mutex<Browser>>().lock().unwrap().game_mode;
             perf::set_game_mode(app, on);
         }
+        "autoclick" => autoclick::toggle(app),
         "capture" => {
             let _ = app.emit("capture-request", ());
         }

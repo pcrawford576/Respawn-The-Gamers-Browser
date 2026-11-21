@@ -1,6 +1,6 @@
 [package]
 name = "respawn"
-version = "0.1.4"
+version = "0.1.5"
 description = "Respawn - The Gamers Browser"
 edition = "2021"
 
@@ -18,7 +18,7 @@ sysinfo = "0.33"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse"] }
 # Same versions Tauri uses internally, for direct WebView2 settings (wv2.rs).
 webview2-com = "0.39"
 windows-core = "0.62"

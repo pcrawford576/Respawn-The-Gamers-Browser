@@ -17,6 +17,7 @@ function hostOf(url) {
 function render() {
   if (!state) return;
   document.body.classList.toggle('game', state.game_mode);
+  $('#autoclick-pill').hidden = !state.autoclick;
   $('#shield').classList.toggle('on', state.adblock_active);
   $('#shield').title = state.adblock_active ? 'Ad & tracker blocking: on' : 'Ad & tracker blocking: off';
 
@@ -248,6 +249,8 @@ document.querySelectorAll('.rail-btn').forEach((b) =>
   b.addEventListener('click', () => invoke('toggle_sidebar', { panel: b.dataset.panel })));
 
 $('#gamemode').addEventListener('click', () => invoke('toggle_game_mode'));
+// Only shown while the auto clicker runs; clicking it stops it.
+$('#autoclick-pill').addEventListener('click', () => { if (state?.autoclick) invoke('run_action', { action: 'autoclick' }); });
 
 // ---------- keyboard shortcuts (set in Settings → Keyboard shortcuts) ----------
 const KEY_ACTIONS = [
@@ -260,7 +263,10 @@ const KEY_ACTIONS = [
   ['close_tab', 'Close tab'],
   ['reload', 'Reload page'],
   ['address', 'Go to the address bar'],
+  ['autoclick', 'Auto clicker on / off', 'works in any program'],
 ];
+// These are registered system-wide (Rust), so the browser bar ignores them.
+const GLOBAL_KEYS = ['game_mode', 'autoclick'];
 const keybinds = () => state?.settings?.keybinds || {};
 
 // Same key names as the in-page script (Rust side): "Ctrl+Shift+G", "Q", "F12"…
@@ -299,7 +305,7 @@ document.addEventListener('keydown', (e) => {
   const combo = comboOf(e);
   if (!combo) return;
   const action = Object.keys(keybinds()).find((a) => keybinds()[a] === combo);
-  if (!action || action === 'game_mode') return; // Game Mode is handled system-wide
+  if (!action || GLOBAL_KEYS.includes(action)) return; // handled system-wide
   const plain = !e.ctrlKey && !e.altKey && !/^F\d/.test(combo);
   if (plain && typing) return;
   e.preventDefault();
@@ -319,6 +325,7 @@ function renderKeyHints() {
   if (k.fullscreen) parts.push(`${k.fullscreen} full screen`);
   if (k.game_mode) parts.push(`${k.game_mode} game mode`);
   if (k.capture) parts.push(`${k.capture} capture`);
+  if (k.autoclick) parts.push(`${k.autoclick} auto click`);
   $('#hints').textContent = parts.join(' · ');
   document.querySelectorAll('[data-key-for]').forEach((el) => {
     el.textContent = k[el.dataset.keyFor] || '';
@@ -354,8 +361,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Backspace' && !e.ctrlKey && !e.altKey) { kbDraft[action] = ''; kbListening = null; renderKeybinds(); return; }
   const combo = comboOf(e);
   if (!combo) { $('#kb-msg').textContent = "That key can't be used — try another."; return; }
-  if (action === 'game_mode' && !e.ctrlKey && !e.altKey && !/^F\d/.test(combo)) {
-    $('#kb-msg').textContent = 'Game Mode works in every program, so it needs Ctrl or Alt (or an F key).';
+  if (GLOBAL_KEYS.includes(action) && !e.ctrlKey && !e.altKey && !/^F\d/.test(combo)) {
+    const name = KEY_ACTIONS.find(([a]) => a === action)[1];
+    $('#kb-msg').textContent = `"${name}" works in every program, so it needs Ctrl or Alt (or an F key).`;
     return;
   }
   const clash = Object.keys(kbDraft).find((a) => a !== action && kbDraft[a] === combo);
@@ -370,7 +378,7 @@ document.addEventListener('keydown', (e) => {
 }, true);
 $('#kb-reset').addEventListener('click', () => {
   kbDraft = { prev_tab: 'Q', next_tab: 'W', fullscreen: 'F12', game_mode: 'Ctrl+Shift+G', capture: 'Ctrl+Shift+X',
-    new_tab: 'Ctrl+T', close_tab: 'Ctrl+W', reload: 'Ctrl+R', address: 'Ctrl+L' };
+    new_tab: 'Ctrl+T', close_tab: 'Ctrl+W', reload: 'Ctrl+R', address: 'Ctrl+L', autoclick: 'F11' };
   kbListening = null;
   $('#kb-msg').textContent = 'Defaults restored — click Save to keep them.';
   renderKeybinds();
@@ -459,6 +467,7 @@ function openSettings() {
   $('#s-history').checked = s.save_history !== false;
   $('#s-restore').checked = s.restore_session !== false;
   $('#s-autounload').checked = !!s.auto_unload;
+  $('#s-acms').value = s.autoclick_ms || 100;
   kbDraft = { ...(s.keybinds || {}) };
   kbListening = null;
   $('#kb-msg').textContent = '';
@@ -499,6 +508,7 @@ $('#settings-save').addEventListener('click', async () => {
     restore_session: $('#s-restore').checked,
     auto_unload: $('#s-autounload').checked,
     keybinds: { ...kbDraft },
+    autoclick_ms: Math.max(10, num('#s-acms') || 100),
     isolate_tabs: $('#s-isolate').checked,
     discord_split: $('#s-dsplit').checked,
     deepl_key: $('#s-deepl').value.trim(),

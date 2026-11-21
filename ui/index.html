@@ -18,6 +18,9 @@
       <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z"/></svg>
       <span class="label">Full screen</span><kbd class="pill-key" data-key-for="fullscreen"></kbd>
     </button>
+    <button id="autoclick-pill" class="pill" hidden title="Auto clicker is running — click here or press its shortcut to stop">
+      <span class="dot"></span><span class="label">Auto clicking</span><kbd class="pill-key" data-key-for="autoclick"></kbd>
+    </button>
     <button id="gamemode" class="pill" title="Game Mode (Ctrl+Shift+G): sleeps background tabs and lowers browser priority">
       <span class="dot"></span><span class="label">Game Mode</span>
     </button>
@@ -189,6 +192,16 @@
           Shortcuts work everywhere in Respawn, including inside games. Single keys (like Q) still type normally in text boxes.</p>
         <div id="keybinds"></div>
         <div class="row"><span class="muted" id="kb-msg"></span><button type="button" id="kb-reset" class="ghost">Reset to defaults</button></div>
+      </section>
+
+      <section>
+        <h3>Auto clicker</h3>
+        <p class="note">Press the auto clicker shortcut (<kbd data-key-for="autoclick"></kbd>, change it under Keyboard shortcuts) to start
+          left-clicking wherever your mouse pointer is, in any program. Press it again to stop.
+          Some online games don't allow auto clickers, so check the game's rules first.</p>
+        <label class="row">Time between clicks (ms, 100 = 10 clicks a second)
+          <input id="s-acms" type="number" min="10" step="10" />
+        </label>
       </section>
 
       <section>
